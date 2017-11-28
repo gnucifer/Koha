@@ -98,13 +98,26 @@ if ( $op eq 'edit' ) {
     }
 }
 elsif( $op eq 'reset_confirmed' ) {
-    Koha::SearchMarcMaps->delete;
-    Koha::SearchFields->delete;
     Koha::SearchEngine::Elasticsearch->reset_elasticsearch_mappings;
     push @messages, { type => 'message', code => 'success_on_reset' };
 }
 elsif( $op eq 'reset_confirm' ) {
     $template->param( reset_confirm => 1 );
+}
+elsif( $op eq 'add' ) {
+    if ( $input->param('i_know_what_i_am_doing') ) {
+        Koha::SearchEngine::Elasticsearch->sync_elasticsearch_mappings({ 'insert_only' => 1 });
+    }
+}
+elsif( $op eq 'revert' ) {
+    if ( $input->param('i_know_what_i_am_doing') ) {
+        Koha::SearchEngine::Elasticsearch->sync_elasticsearch_mappings({ 'revert_mappings' => 1 });
+    }
+}
+elsif( $op eq 'merge' ) {
+    if ( $input->param('i_know_what_i_am_doing') ) {
+        Koha::SearchEngine::Elasticsearch->sync_elasticsearch_mappings();
+    }
 }
 
 

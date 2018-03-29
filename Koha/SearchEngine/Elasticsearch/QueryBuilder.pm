@@ -92,6 +92,7 @@ sub build_query {
             default_operator => 'AND',
             default_field    => '_all',
             lenient          => JSON::true,
+            fields           => $options{fields} || [],
         }
     };
 
@@ -228,9 +229,15 @@ sub build_query_compat {
         join( ' ', $self->_create_query_string(@search_params) ) || (),
         $self->_join_queries( $self->_convert_index_strings(@$limits) ) || () );
 
+    my @fields = '_all';
+    if ( defined($params->{weighted_fields}) && $params->{weighted_fields} ) {
+        push @fields, sprintf("%s^%s", $_->name, $_->weight) for Koha::SearchFields->weighted_fields;
+    }
+
     # If there's no query on the left, let's remove the junk left behind
     $query_str =~ s/^ AND //;
     my %options;
+    $options{fields} = \@fields;
     $options{sort} = \@sort_params;
     $options{expanded_facet} = $params->{expanded_facet};
     my $query = $self->build_query( $query_str, %options );

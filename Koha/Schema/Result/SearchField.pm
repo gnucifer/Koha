@@ -77,7 +77,11 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
   },
   "weight",
-  { data_type => "decimal", is_nullable => 1, size => [5, 2] },
+  { data_type => "decimal", size => [ 5, 2 ], is_nullable => 1 },
+  "staff_client",
+  { data_type => "tinyint", size => 1, is_nullable => 0, default => 1 },
+  "opac",
+  { data_type => "tinyint", size => 1, is_nullable => 0, default => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -127,6 +131,7 @@ __PACKAGE__->has_many(
 # Created by DBIx::Class::Schema::Loader v0.07048 @ 2018-10-23 14:57:11
 # DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pmTa/VWSm2pudjI3SgBWuQ
 
+__PACKAGE__->many_to_many("search_marc_maps", "search_marc_to_fields", "search_marc_map");
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

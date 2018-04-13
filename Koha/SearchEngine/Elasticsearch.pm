@@ -170,7 +170,7 @@ sub get_elasticsearch_mappings {
         my $marcflavour = lc C4::Context->preference('marcflavour');
         $self->_foreach_mapping(
             sub {
-                my ( $name, $type, $facet, $suggestible, $sort, $marc_type ) = @_;
+                my ( $name, $type, $facet, $suggestible, $sort, $search, $marc_type ) = @_;
                 return if $marc_type ne $marcflavour;
                 # TODO if this gets any sort of complexity to it, it should
                 # be broken out into its own function.
@@ -185,9 +185,9 @@ sub get_elasticsearch_mappings {
                 } elsif ($type eq 'isbn' || $type eq 'stdno') {
                     $es_type = 'stdno';
                 }
-
-                $mappings->{data}{properties}{$name} = _get_elasticsearch_mapping('search', $es_type);
-
+                if ($search) {
+                    $mappings->{data}{properties}{$name} = _get_elasticsearch_mapping('search', $es_type);
+                }
                 if ($facet) {
                     $mappings->{data}{properties}{ $name . '__facet' } = _get_elasticsearch_mapping('facet', $es_type);
                 }
@@ -255,11 +255,13 @@ sub reset_elasticsearch_mappings {
         while ( my ( $field_name, $data ) = each %$fields ) {
             my $field_type = $data->{type};
             my $field_label = $data->{label};
+            my $staff_client = exists $data->{staff_client} ? $data->{staff_client} : 1;
+            my $opac = exists $data->{opac} ? $data->{opac} : 1;
             my $mappings = $data->{mappings};
-            my $search_field = Koha::SearchFields->find_or_create({ name => $field_name, label => $field_label, type => $field_type }, { key => 'name' });
+            my $search_field = Koha::SearchFields->find_or_create({ name => $field_name, label => $field_label, type => $field_type, staff_client => $staff_client, opac => $opac }, { key => 'name' });
             for my $mapping ( @$mappings ) {
                 my $marc_field = Koha::SearchMarcMaps->find_or_create({ index_name => $index_name, marc_type => $mapping->{marc_type}, marc_field => $mapping->{marc_field} });
-                $search_field->add_to_search_marc_maps($marc_field, { facet => $mapping->{facet} || 0, suggestible => $mapping->{suggestible} || 0, sort => $mapping->{sort} } );
+                $search_field->add_to_search_marc_maps($marc_field, { facet => $mapping->{facet} || 0, suggestible => $mapping->{suggestible} || 0, sort => $mapping->{sort}, search => $mapping->{search} || 1 } );
             }
         }
     }
@@ -290,11 +292,13 @@ sub get_fixer_rules {
 
     $self->_foreach_mapping(
         sub {
-            my ( $name, $type, $facet, $suggestible, $sort, $marc_type, $marc_field ) = @_;
+            my ( $name, $type, $facet, $suggestible, $sort, $search, $marc_type, $marc_field ) = @_;
             return if $marc_type ne $marcflavour;
             my $options ='';
 
-            push @rules, "marc_map('$marc_field','${name}.\$append', $options)";
+            if ($search) {
+                push @rules, "marc_map('$marc_field','${name}.\$append', $options)";
+            }
             if ($facet) {
                 push @rules, "marc_map('$marc_field','${name}__facet.\$append', $options)";
             }
@@ -392,6 +396,7 @@ sub _foreach_mapping {
                 'search_marc_to_fields.facet',
                 'search_marc_to_fields.suggestible',
                 'search_marc_to_fields.sort',
+                'search_marc_to_fields.search',
                 'search_marc_map.marc_type',
                 'search_marc_map.marc_field',
             ],
@@ -399,6 +404,7 @@ sub _foreach_mapping {
                 'facet',
                 'suggestible',
                 'sort',
+                'search',
                 'marc_type',
                 'marc_field',
             ],
@@ -412,6 +418,7 @@ sub _foreach_mapping {
             $search_field->get_column('facet'),
             $search_field->get_column('suggestible'),
             $search_field->get_column('sort'),
+            $search_field->get_column('search'),
             $search_field->get_column('marc_type'),
             $search_field->get_column('marc_field'),
         );
